@@ -3,10 +3,10 @@
 </br>
 <h1>Libraries needed to be installed before running the code</h1>
 </br>
-<ul>
-  <li><p style="font-family: verdana font-size: 12 px ;">numpy: pip install numpy</p></li>
-  <li><p style="font-family: verdana font-size: 12 px ;">OpenCV: pip install opencv-contrib-python</p></li>
-  <li><p style="font-family: verdana font-size: 12 px ;">matpoltlib: pip install matpoltlib</p></li>
-  <li><p style="font-family: verdana font-size: 12 px ;">moviepy: pip install moviepy</p></li>
+<ul style="font-family: verdana font-size: 12 px;">
+  <li><p style="font-family: verdana font-size: 12 px color: red;">numpy</p> : pip install numpy</li>
+  <li><p style="font-family: verdana font-size: 12 px color: red;">OpenCV :</p> pip install opencv-contrib-python</li>
+  <li><p style="font-family: verdana font-size: 12 px color: red;">matpoltlib :</p> pip install matpoltlib</li>
+  <li><p style="font-family: verdana font-size: 12 px color: red;">moviepy :</p> pip install moviepy</li>
 </ul>
 
