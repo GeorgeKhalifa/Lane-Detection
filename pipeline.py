@@ -25,6 +25,109 @@ dst = np.float32([(450,0),
                   (450,h),
                   (w-450,h)])
 
+# Make Birdeye view prespective transform and can return the image back to the normal view
+def unwarp(img, src, dst):
+    h,w = img.shape[:2]
+    # use cv2.getPerspectiveTransform() to get M, the transform matrix, and Minv, the inverse
+    M = cv2.getPerspectiveTransform(src, dst)
+    Minv = cv2.getPerspectiveTransform(dst, src)
+    # use cv2.warpPerspective() to warp your image to a top-down view
+    warped = cv2.warpPerspective(img, M, (w,h), flags=cv2.INTER_LINEAR)
+    return warped, M, Minv
+
+# Define a function that applies Sobel x or y,
+# then takes an absolute value and applies a threshold.
+def abs_sobel_thresh(img, orient='x', thresh_min=25, thresh_max=255):
+    # Apply the following steps to img
+    # 1) Convert to grayscale === or LAB L channel
+    gray = (cv2.cvtColor(img, cv2.COLOR_RGB2HLS))[:,:,1] ################ change the channel from L to another
+    # 2) Take the derivative in x or y given orient = 'x' or 'y'
+    #######sobel = cv2.Sobel(gray, cv2.CV_64F, orient=='x', orient=='y')
+    sobel = cv2.Sobel(gray, cv2.CV_64F, int(orient=='x'), int(orient=='y'))
+    #plt.imshow(sobel)
+    # 3) Take the absolute value of the derivative or gradient
+    abs_sobel = np.absolute(sobel)
+    # 4) Scale to 8-bit (0 - 255) then convert to type = np.uint8
+    scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
+    # 5) Create a mask of 1's where the scaled gradient magnitude
+            # is > thresh_min and < thresh_max
+    sxbinary = np.zeros_like(scaled_sobel)
+    sxbinary[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
+    # 6) Return this mask as your binary_output image
+    binary_output = sxbinary # Remove this line
+    return binary_output
+
+
+# Define a function that applies Sobel x and y,
+# then computes the magnitude of the gradient
+# and applies a threshold
+def mag_thresh(img, sobel_kernel=25, mag_thresh=(25, 255)):
+    # Apply the following steps to img
+    # 1) Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # 2) Take the gradient in x and y separately
+    blur = cv2.GaussianBlur(gray, (13, 13), 0)
+    sobelx = cv2.Sobel(blur, cv2.CV_64F, 1, 0)
+    sobely = cv2.Sobel(blur, cv2.CV_64F, 0, 1)
+    # 3) Calculate the magnitude
+    mag_sobel = np.sqrt(np.square(sobelx) + np.square(sobely))
+    # 4) Scale to 8-bit (0 - 255) and convert to type = np.uint8
+    scaled_sobel = np.uint8(255 * mag_sobel / np.max(mag_sobel))
+    # 5) Create a binary mask where mag thresholds are met
+    sxbinary = np.zeros_like(scaled_sobel)
+    sxbinary[(scaled_sobel >= mag_thresh[0]) & (scaled_sobel <= mag_thresh[1])] = 1
+    # 6) Return this mask as your binary_output image
+    binary_output = np.copy(sxbinary)
+    return binary_output
+
+# Define a function that applies Sobel x and y,
+# then computes the direction of the gradient
+# and applies a threshold.
+def dir_thresh(img, sobel_kernel=7, thresh=(0, 0.09)):
+    # Apply the following steps to img
+    # 1) Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # 2) Take the gradient in x and y separately
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
+    # 3) Take the absolute value of the x and y gradients
+    abs_sobelx = np.absolute(sobelx)
+    abs_sobely = np.absolute(sobely)
+    # 4) Use np.arctan2(abs_sobely, abs_sobelx) to calculate the direction of the gradient
+    grad_dir = np.arctan2(abs_sobely, abs_sobelx)
+    # 5) Create a binary mask where direction thresholds are met
+    binary_output =  np.zeros_like(grad_dir)
+    binary_output[(grad_dir >= thresh[0]) & (grad_dir <= thresh[1])] = 1
+    # 6) Return this mask as your binary_output image
+    return binary_output
+
+# Define a function that thresholds the S-channel of HLS
+# Use exclusive lower bound (>) and inclusive upper (<=)
+def hls_sthresh(img, thresh=(125, 255)):
+    # 1) Convert to HLS color space
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    hls = cv2.GaussianBlur(hls,(9,9),0)
+    # 2) Apply a threshold to the S channel
+    binary_output = np.zeros_like(hls[:,:,2])
+    binary_output[(hls[:,:,2] > thresh[0]) & (hls[:,:,2] <= thresh[1])] = 1
+    # 3) Return a binary image of threshold result
+    return binary_output
+
+
+# Define a function that thresholds the L-channel of HLS
+# Use exclusive lower bound (>) and inclusive upper (<=)
+def hls_lthresh(img, thresh=(220, 255)):
+    # 1) Convert to HLS color space
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    hls = cv2.GaussianBlur(hls,(25,25),0)
+    hls_l = hls[:,:,1]
+    hls_l = hls_l*(255/np.max(hls_l))
+    # 2) Apply a threshold to the L channel
+    binary_output = np.zeros_like(hls_l)
+    binary_output[(hls_l > thresh[0]) & (hls_l <= thresh[1])] = 1
+    # 3) Return a binary image of threshold result
+    return binary_output
+
 # Define a function that thresholds the B-channel of LAB
 # Use exclusive lower bound (>) and inclusive upper (<=), OR the results of the thresholds (B channel should capture
 # yellows)
@@ -111,6 +214,52 @@ def pipeline(img):
     # combined[(img_LThresh == 1) | (img_SThresh == 1)] = 1
     return img_unwarp_crop, combined, Minv
 
+# Draw the lanes and fill the space with green color between the right and left lines
+def draw_lane(mode, original_img, binary_img, l_fit, r_fit, Minv, img_unwarp_crop):
+    new_img = np.copy(original_img)
+    if l_fit is None or r_fit is None:
+        return original_img
+    # Create an image to draw the lines on
+    warp_zero = np.zeros_like(binary_img).astype(np.uint8)
+
+    color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+    h, w = binary_img.shape
+    ploty = np.linspace(0, h - 1, num=h)  # to cover same y-range as image
+    left_fitx = l_fit[0] * ploty ** 2 + l_fit[1] * ploty + l_fit[2]
+    right_fitx = r_fit[0] * ploty ** 2 + r_fit[1] * ploty + r_fit[2]
+
+    # Recast the x and y points into usable format for cv2.fillPoly()
+    pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+    pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+    pts = np.hstack((pts_left, pts_right))
+
+    # Draw the lane onto the warped blank image
+    cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+    cv2.polylines(color_warp, np.int32([pts_left]), isClosed=False, color=(255, 0, 255), thickness=15)
+    cv2.polylines(color_warp, np.int32([pts_right]), isClosed=False, color=(0, 255, 255), thickness=15)
+
+    # Warp the blank back to original image space using inverse perspective matrix (Minv)
+    newwarp = cv2.warpPerspective(color_warp, Minv, (w, h))
+    # Combine the result with the original image
+    result = cv2.addWeighted(new_img, 1, newwarp, 0.5, 0)
+    if mode == 1:
+        result = combine_images(color_warp, original_img, result, img_unwarp_crop, binary_img)
+    return result
+
+########canny-edge _detector and ROI_mask used in our first trail in pipeline then we changed the pipeline##########
+
+# Returns edges detected in an image
+def canny_edge_detector(frame):
+    # Convert to grayscale as only image intensity needed for gradients
+    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    # 5x5 gaussian blur to reduce noise
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Canny edge detector with minVal of 50 and maxVal of 150
+    canny = cv2.Canny(blur, 50, 150)
+    return canny
+
+# crops selected part from image
 def ROI_mask(image):
     height = image.shape[0]
     width = image.shape[1]
@@ -125,6 +274,7 @@ def ROI_mask(image):
     masked_image = cv2.bitwise_and(image, mask)
     return masked_image
 
+# main function that have our pipline and all other functions called
 def process_image(img,mode):
     new_img = np.copy(img)
     img_unwarp_crop, img_bin, Minv = pipeline(new_img)

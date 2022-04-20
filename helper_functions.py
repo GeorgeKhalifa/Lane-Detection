@@ -183,6 +183,7 @@ def polyfit_using_prev_fit(binary_warped, left_fit_prev, right_fit_prev):
         right_fit_new = np.polyfit(righty, rightx, 2)
     return left_fit_new, right_fit_new, left_lane_inds, right_lane_inds
 
+#Write the title of each stage of the pipline on the output video
 def write_titles(original_img, title):
     new_img = np.copy(original_img)
     h = new_img.shape[0]
@@ -191,6 +192,83 @@ def write_titles(original_img, title):
     direction = ''
     return new_img
 
+#Draw the pipeline stages on the output video
+def combine_images(color_warp, original_img, result, img_unwarp_crop, binary_img):
+    """
+    Returns a new image made up of the lane area image, and the remaining lane images are overlaid as
+    small images in a row at the top of the the new image
+    """
+    h, w = original_img.shape[:2]
+    src = np.float32([(575, 464),
+                      (707, 464),
+                      (1049, 682),
+                      (258, 682)])
+    dst = np.float32([(450, 0),
+                      (w - 450, 0),
+                      (w - 450, h),
+                      (450, h)])
+
+    pts = src.reshape((-1, 1, 2))
+
+    isClosed = True
+
+    # Blue color in BGR
+    color = (0, 255, 0)
+
+    # Line thickness of 2 px
+    thickness = 2
+
+    new_original_img = np.copy(original_img)
+    image = cv2.polylines(new_original_img, np.int32([pts]), isClosed, color, thickness)
+
+    sliding_image = draw_sliding(binary_img)
+
+    small_img_unwarp_crop = cv2.resize(img_unwarp_crop, (200, 200))
+    small_binary_img = cv2.resize(binary_img, (200, 200))
+    small_original_img = cv2.resize(image, (200, 200))
+    small_sliding_image = cv2.resize(sliding_image, (200, 200))  # ok
+    small_color_warp = cv2.resize(color_warp, (200, 200))  # ok
+
+    img2 = np.zeros_like(small_img_unwarp_crop)
+    img2[:, :, 0] = small_binary_img * 255
+    img2[:, :, 1] = small_binary_img * 255
+    img2[:, :, 2] = small_binary_img * 255
+
+    img2 = write_titles(img2, 'Birdeye view threshold')
+    small_color_warp = write_titles(small_color_warp, 'Polynomial fit')
+    small_sliding_image = write_titles(small_sliding_image, 'sliding window result')
+    small_img_unwarp_crop = write_titles(small_img_unwarp_crop, 'Birdeye view')
+
+    small_img_x_offset = 20
+    small_img_size = (200, 200)
+    small_img_y_offset = 10
+    img_dimensions = (720, 1280)
+    result[small_img_y_offset: small_img_y_offset + small_img_size[1],
+    600: 600 + small_img_size[0]] = small_img_unwarp_crop
+
+    start_offset_y = small_img_y_offset
+    start_offset_x = 2 * small_img_x_offset + small_img_size[0] + 580
+    result[start_offset_y: start_offset_y + small_img_size[1],
+    start_offset_x: start_offset_x + small_img_size[0]] = img2
+
+    start_offset_y = small_img_y_offset
+    start_offset_x = 3 * small_img_x_offset + 2 * small_img_size[0] + 580
+    result[start_offset_y: start_offset_y + small_img_size[1],
+    start_offset_x: start_offset_x + small_img_size[0]] = small_original_img
+
+    start_offset_y = small_img_y_offset * 2 + small_img_size[1]  # 2+10 + 200 = 220 --> 420
+    start_offset_x = 3 * small_img_x_offset + 2 * small_img_size[0] + 580  # 3*20 + 2*200 + 580 = 1040 --> 1240
+    result[start_offset_y: start_offset_y + small_img_size[1],
+    start_offset_x: start_offset_x + small_img_size[0]] = small_sliding_image
+
+    start_offset_y = small_img_y_offset * 2 + small_img_size[1]
+    start_offset_x = 3 * small_img_x_offset + small_img_size[0] + 560
+    result[start_offset_y: start_offset_y + small_img_size[1],
+    start_offset_x: start_offset_x + small_img_size[0]] = small_color_warp
+
+    return result
+
+#Draw the center place and the curvature on the video
 def draw_data(original_img, curv_rad, center_dist):
     new_img = np.copy(original_img)
     h = new_img.shape[0]
