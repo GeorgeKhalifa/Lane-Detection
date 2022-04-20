@@ -24,6 +24,10 @@
 4) Choose the arguments (var2: output video).</br>
 5) Save the open.sh file.</br>
 6) Run the open.sh file.</br>
+
+</br>
+
+
 ## Pipeline of this project:
 
 1) Apply perspective transform to binary threshholded image to get top view. <br/>
