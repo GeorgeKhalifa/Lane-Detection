@@ -17,7 +17,13 @@
   <li><span>moviepy :</span> pip install moviepy</li>
 </ul>
 </br>
-
+<h1>How to run our code</h1></br>
+1) Open then edit the open.sh file. </br>
+2) Choose the arguments (var1: mode) 1 for debugging mode and 0 for normal mode.</br>
+3) Choose the arguments (var2: input video).</br>
+4) Choose the arguments (var2: output video).</br>
+5) Save the open.sh file.</br>
+6) Run the open.sh file.</br>
 ## Pipeline of this project:
 
 1) Apply perspective transform to binary threshholded image to get top view. <br/>
