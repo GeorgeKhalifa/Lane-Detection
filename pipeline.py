@@ -25,6 +25,66 @@ dst = np.float32([(450,0),
                   (450,h),
                   (w-450,h)])
 
+# Define a function that thresholds the B-channel of LAB
+# Use exclusive lower bound (>) and inclusive upper (<=), OR the results of the thresholds (B channel should capture
+# yellows)
+def lab_bthresh(img, thresh=(190,255)):
+    # 1) Convert to LAB color space
+    lab = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+    lab_b = lab[:,:,2]
+    # don't normalize if there are no yellows in the image
+    if np.max(lab_b) > 175:
+        lab_b = lab_b*(255/np.max(lab_b))
+    # 2) Apply a threshold to the L channel
+    binary_output = np.zeros_like(lab_b)
+    binary_output[((lab_b > thresh[0]) & (lab_b <= thresh[1]))] = 1
+    # 3) Return a binary image of threshold result
+    return binary_output
+
+# Method to determine radius of curvature and distance from lane center
+# based on binary image, polynomial fit, and L and R lane pixel indices
+def calc_curv_rad_and_center_dist(bin_img, l_fit, r_fit, l_lane_inds, r_lane_inds):
+    # Define conversions in x and y from pixels space to meters
+    ym_per_pix = 3.048 / 100  # meters per pixel in y dimension, lane line is 10 ft = 3.048 meters
+    xm_per_pix = 3.7 / 378  # meters per pixel in x dimension, lane width is 12 ft = 3.7 meters
+    left_curverad, right_curverad, center_dist = (0, 0, 0)
+    # Define y-value where we want radius of curvature
+    # I'll choose the maximum y-value, corresponding to the bottom of the image
+    h = bin_img.shape[0]
+    ploty = np.linspace(0, h - 1, h)
+    y_eval = np.max(ploty)
+
+    # Identify the x and y positions of all nonzero pixels in the image
+    nonzero = bin_img.nonzero()
+    nonzeroy = np.array(nonzero[0])
+    nonzerox = np.array(nonzero[1])
+    # Again, extract left and right line pixel positions
+    leftx = nonzerox[l_lane_inds]
+    lefty = nonzeroy[l_lane_inds]
+    rightx = nonzerox[r_lane_inds]
+    righty = nonzeroy[r_lane_inds]
+
+    if len(leftx) != 0 and len(rightx) != 0:
+        # Fit new polynomials to x,y in world space
+        left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
+        right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
+        # Calculate the new radii of curvature
+        left_curverad = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+            2 * left_fit_cr[0])
+        right_curverad = ((1 + (
+                    2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+            2 * right_fit_cr[0])
+        # Now our radius of curvature is in meters
+
+    # Distance from center is image x midpoint - mean of l_fit and r_fit intercepts
+    if r_fit is not None and l_fit is not None:
+        car_position = bin_img.shape[1] / 2
+        l_fit_x_int = l_fit[0] * h ** 2 + l_fit[1] * h + l_fit[2]
+        r_fit_x_int = r_fit[0] * h ** 2 + r_fit[1] * h + r_fit[2]
+        lane_center_position = (r_fit_x_int + l_fit_x_int) / 2
+        center_dist = (car_position - lane_center_position) * xm_per_pix
+    return left_curverad, right_curverad, center_dist
+
 # Define the complete image processing pipeline, reads raw image and returns binary image with lane lines identified
 # (hopefully)
 def pipeline(img):
@@ -51,7 +111,19 @@ def pipeline(img):
     # combined[(img_LThresh == 1) | (img_SThresh == 1)] = 1
     return img_unwarp_crop, combined, Minv
 
-
+def ROI_mask(image):
+    height = image.shape[0]
+    width = image.shape[1]
+    # A triangular polygon to segment the lane area and discarded other irrelevant parts in the image
+    # Defined by three (x, y) coordinates
+    polygons = np.array([
+        [(0, height), (round(width / 2), round(height / 2)), (1000, height)]
+    ])
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, polygons, 255)  ## 255 is the mask color
+    # Bitwise AND between canny image and mask image
+    masked_image = cv2.bitwise_and(image, mask)
+    return masked_image
 
 def process_image(img,mode):
     new_img = np.copy(img)
@@ -87,6 +159,3 @@ def process_image(img,mode):
         img_out = new_img
 
     return img_out
-
-
-
