@@ -11,8 +11,6 @@
 </ul>
 </br>
 
-# Advanced Lane Detection
-
 ## Pipeline of this project:
 
 1) Compute the camera caliberation matrix and distortion coefficient from chessboard images. <br/>
@@ -191,7 +189,7 @@ interact(update,
          max_thresh=(0,255))
 
 ```
-![download](https://user-images.githubusercontent.com/74133869/164295170-d0bd3a1e-ed42-4e2a-b433-5719ee2c4af1.png)
+![download](https://user-images.githubusercontent.com/74133869/164300817-3986b8e6-2ba1-4963-89b6-6b1d0e592a02.png)
 
 ```python
 # Define a function that applies Sobel x and y, 
@@ -235,7 +233,8 @@ interact(update, kernel_size=(1,31,2),
 ```
 
 
-![download](https://user-images.githubusercontent.com/74133869/164298153-f32f3116-ca93-4913-b378-24b782752723.png)
+![download](https://user-images.githubusercontent.com/74133869/164300976-c51c305f-728d-4c70-935d-a38a364b541e.png)
+
 
 
   
@@ -278,222 +277,376 @@ interact(update, kernel_size=(1,31,2),
                  max_thresh=(0,np.pi/2,0.01))
 ```
 
-![download](https://user-images.githubusercontent.com/74133869/164298342-f7b1e86f-4526-4638-8f23-dd842d612787.png)
+![download](https://user-images.githubusercontent.com/74133869/164301378-066b0fc2-675a-464d-8bfc-48a98d6e1c2d.png)
+
 
 
 ```python
-def get_hls_lthresh_img(img, thresh=(0, 255)):
-    hls_img= cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    L = hls_img[:, :, 1]
+def update(mag_kernel_size, mag_min_thresh, mag_max_thresh, dir_kernel_size, dir_min_thresh, dir_max_thresh):
+    exampleImg_sobelMag2 = mag_thresh(exampleImg_unwarp, mag_kernel_size, (mag_min_thresh, mag_max_thresh))
+    exampleImg_sobelDir2 = dir_thresh(exampleImg_unwarp, dir_kernel_size, (dir_min_thresh, dir_max_thresh))
+    combined = np.zeros_like(exampleImg_sobelMag2)
+    combined[((exampleImg_sobelMag2 == 1) & (exampleImg_sobelDir2 == 1))] = 1
+    # Visualize sobel magnitude + direction threshold
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    f.subplots_adjust(hspace = .2, wspace=.05)
+    ax1.imshow(exampleImg_unwarp)
+    ax1.set_title('Unwarped Image', fontsize=30)
+    ax2.imshow(combined, cmap='gray')
+    ax2.set_title('Sobel Magnitude + Direction', fontsize=30)
 
-    binary_output = np.zeros_like(L).astype(np.uint8)    
-    binary_output[(L >= thresh[0]) & (L < thresh[1])] = 1
-    
+interact(update, mag_kernel_size=(1,31,2), 
+                 mag_min_thresh=(0,255), 
+                 mag_max_thresh=(0,255),
+                 dir_kernel_size=(1,31,2), 
+                 dir_min_thresh=(0,np.pi/2,0.01), 
+                 dir_max_thresh=(0,np.pi/2,0.01))
+```
+
+
+
+![download](https://user-images.githubusercontent.com/74133869/164301568-98a8fd43-aa29-45a0-b581-0497fa248b44.png)
+
+# Thresholding for S Channel HLS
+
+```python
+# Define a function that thresholds the S-channel of HLS
+# Use exclusive lower bound (>) and inclusive upper (<=)
+def hls_sthresh(img, thresh=(125, 255)):
+    # 1) Convert to HLS color space
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    hls = cv2.GaussianBlur(hls,(9,9),0)
+    # 2) Apply a threshold to the S channel
+    binary_output = np.zeros_like(hls[:,:,2])
+    binary_output[(hls[:,:,2] > thresh[0]) & (hls[:,:,2] <= thresh[1])] = 1
+    # 3) Return a binary image of threshold result
     return binary_output
 ```
 
 
 ```python
-img = undistort(images[0], objpoints, imgpoints)
-    
-combined_binary = get_hls_lthresh_img(img, thresh=(201, 255))
-warped, warp_matrix, unwarp_matrix, out_img_orig, out_warped_img = transform_image(combined_binary, offset=300)
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,8))
-f.tight_layout()
-ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-ax1.set_title("Original:: " + image , fontsize=18)
-ax2.imshow(warped, cmap='gray')
-ax2.set_title("Transformed:: "+ image, fontsize=18)
+def update(min_thresh, max_thresh):
+    exampleImg_SThresh = hls_sthresh(exampleImg_unwarp, (min_thresh, max_thresh))
+    # Visualize hls s-channel threshold
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    f.subplots_adjust(hspace = .2, wspace=.05)
+    ax1.imshow(exampleImg_unwarp)
+    ax1.set_title('Unwarped Image', fontsize=30)
+    ax2.imshow(exampleImg_SThresh, cmap='gray')
+    ax2.set_title('HLS S-Channel', fontsize=30)
+
+interact(update,
+         min_thresh=(0,255), 
+         max_thresh=(0,255))
 ```
 
 
-
-
-    Text(0.5, 1.0, 'Transformed:: test_images/test5.jpg')
-
-
-
-
-![png](output_30_1.png)
+![download](https://user-images.githubusercontent.com/74133869/164302040-fa8a6293-4999-4cc9-a88b-dcf01ff90b9f.png)
 
 
 
 ```python
-def get_hls_sthresh_img(img, thresh=(0, 255)):
-    hls_img= cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    S = hls_img[:, :, 2]
-
-    binary_output = np.zeros_like(S).astype(np.uint8)    
-    binary_output[(S >= thresh[0]) & (S < thresh[1])] = 1
-    
+# Define a function that thresholds the L-channel of HLS
+# Use exclusive lower bound (>) and inclusive upper (<=)
+def hls_lthresh(img, thresh=(220, 255)):
+    # 1) Convert to HLS color space
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    hls = cv2.GaussianBlur(hls,(25,25),0)
+    hls_l = hls[:,:,1]
+    hls_l = hls_l*(255/np.max(hls_l))
+    # 2) Apply a threshold to the L channel
+    binary_output = np.zeros_like(hls_l)
+    binary_output[(hls_l > thresh[0]) & (hls_l <= thresh[1])] = 1
+    # 3) Return a binary image of threshold result
     return binary_output
 ```
 
 
 ```python
-img = undistort(images[0], objpoints, imgpoints)
-    
-combined_binary = get_hls_sthresh_img(img, thresh=(150, 255))
-warped, warp_matrix, unwarp_matrix, out_img_orig, out_warped_img = transform_image(combined_binary, offset=300)
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,8))
-f.tight_layout()
-ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-ax1.set_title("Original:: " + image , fontsize=18)
-ax2.imshow(warped, cmap='gray')
-ax2.set_title("Transformed:: "+ image, fontsize=18)
+def update(min_thresh, max_thresh):
+    exampleImg_LThresh = hls_lthresh(exampleImg_unwarp, (min_thresh, max_thresh))
+    # Visualize hls l-channel threshold
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    f.subplots_adjust(hspace = .2, wspace=.05)
+    l_channel=exampleImg_unwarp[:,:,1]
+    hls = cv2.GaussianBlur(l_channel,(51,51),0)
+    ax1.imshow(hls, cmap='gray')
+    ax1.set_title('Unwarped Image', fontsize=30)
+    ax2.imshow(exampleImg_LThresh, cmap='gray')
+    ax2.set_title('HLS L-Channel', fontsize=30)
+
+interact(update,
+         min_thresh=(0,255), 
+         max_thresh=(0,255))
 ```
 
+![download](https://user-images.githubusercontent.com/74133869/164302207-cf1c26df-932c-4f34-8a1a-d7f4a6b5c62b.png)
 
 
-
-    Text(0.5, 1.0, 'Transformed:: test_images/test5.jpg')
-
-
-
-
-![png](output_32_1.png)
-
-
+# Thresholding for B Channel LAB
 
 ```python
-def get_lab_athresh_img(img, thresh=(0,255)):
-    lab_img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    A = lab_img[:, :, 1]
-    
-    bin_op = np.zeros_like(A).astype(np.uint8)
-    bin_op[(A >= thresh[0]) & (A < thresh[1])] = 1
-    
-    return bin_op
-```
-
-
-```python
-def get_lab_bthresh_img(img, thresh=(0,255)):
-    lab_img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    B = lab_img[:, :, 2]
-    
-    bin_op = np.zeros_like(B).astype(np.uint8)
-    bin_op[(B >= thresh[0]) & (B < thresh[1])] = 1
-    
-    return bin_op
+# Define a function that thresholds the B-channel of LAB
+# Use exclusive lower bound (>) and inclusive upper (<=), OR the results of the thresholds (B channel should capture
+# yellows)
+def lab_bthresh(img, thresh=(190,255)):
+    # 1) Convert to LAB color space
+    lab = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+    lab_b = lab[:,:,2]
+    # don't normalize if there are no yellows in the image
+    if np.max(lab_b) > 175:
+        lab_b = lab_b*(255/np.max(lab_b))
+    # 2) Apply a threshold to the L channel
+    binary_output = np.zeros_like(lab_b)
+    binary_output[((lab_b > thresh[0]) & (lab_b <= thresh[1]))] = 1
+    # 3) Return a binary image of threshold result
+    return binary_output
 ```
 
 
 ```python
-img = undistort(images[0], objpoints, imgpoints)
-    
-combined_binary = get_lab_bthresh_img(img, thresh=(147, 255))
-warped, warp_matrix, unwarp_matrix, out_img_orig, out_warped_img = transform_image(combined_binary, offset=300)
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,8))
-f.tight_layout()
-ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-ax1.set_title("Original:: " + image , fontsize=18)
-ax2.imshow(warped, cmap='gray')
-ax2.set_title("Transformed:: "+ image, fontsize=18)
+def update(min_b_thresh, max_b_thresh):
+    exampleImg_LBThresh = lab_bthresh(exampleImg_unwarp, (min_b_thresh, max_b_thresh))
+    # Visualize LAB B threshold
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+    f.subplots_adjust(hspace = .2, wspace=.05)
+    ax1.imshow(exampleImg_unwarp)
+    ax1.set_title('Unwarped Image', fontsize=30)
+    ax2.imshow(exampleImg_LBThresh, cmap='gray')
+    ax2.set_title('LAB B-channel', fontsize=30)
+
+interact(update,
+         min_b_thresh=(0,255),
+         max_b_thresh=(0,255))
 ```
+![download](https://user-images.githubusercontent.com/74133869/164302450-324046ac-0ef4-406d-b550-764438850f75.png)
 
 
-
-
-    Text(0.5, 1.0, 'Transformed:: test_images/test5.jpg')
-
-
-
-
-![png](output_35_1.png)
-
-
+# Pipeline of Lane Detection
 
 ```python
-def get_bin_img(img, kernel_size=3, sobel_dirn='X', sobel_thresh=(0,255), r_thresh=(0, 255), 
-                s_thresh=(0,255), b_thresh=(0, 255), g_thresh=(0, 255)):
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float32)
-    h_channel = hls[:,:,0]
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
-    
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-      
-    if sobel_dirn == 'X':
-        sobel = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize = kernel_size)
-    else:
-        sobel = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize = kernel_size)
-        
-    abs_sobel = np.absolute(sobel)
-    scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
-    
-    sbinary = np.zeros_like(scaled_sobel)
-    sbinary[(scaled_sobel >= sobel_thresh[0]) & (scaled_sobel <= sobel_thresh[1])] = 1
-    
-    combined = np.zeros_like(sbinary)
-    combined[(sbinary == 1)] = 1
+# Define the complete image processing pipeline, reads raw image and returns binary image with lane lines identified
+# (hopefully)
+def pipeline(img):
+    #img_unwarp=canny_edge_detector(img)
+    #img_unwarp_crop=ROI_mask(img_unwarp)
+    # Perspective Transform
+    img_unwarp_crop, M, Minv = unwarp(img, src, dst)
 
-    # Threshold R color channel
-    r_binary = get_rgb_thresh_img(img, thresh= r_thresh)
-    
-    # Threshhold G color channel
-    g_binary = get_rgb_thresh_img(img, thresh= g_thresh, channel='G')
-    
-    # Threshhold B in LAB
-    b_binary = get_lab_bthresh_img(img, thresh=b_thresh)
-    
-    # Threshold color channel
-    s_binary = get_hls_sthresh_img(img, thresh=s_thresh)
+    # Sobel Absolute (using default parameters)
+    #img_sobelAbs = abs_sobel_thresh(img_unwarp)
 
-    # If two of the three are activated, activate in the binary image
-    combined_binary = np.zeros_like(combined)
-    combined_binary[(r_binary == 1) | (combined == 1) | (s_binary == 1)| (b_binary == 1) | (g_binary == 1)] = 1
+    # Sobel Magnitude (using default parameters)
+    #img_sobelMag = mag_thresh(img_unwarp)
+    
+    # Sobel Direction (using default parameters)
+    #img_sobelDir = dir_thresh(img_unwarp)
+    
+    # HLS S-channel Threshold (using default parameters)
+    #img_SThresh = hls_sthresh(img_unwarp)
 
-    return combined_binary
+    # HLS L-channel Threshold (using default parameters)
+    img_LThresh = hls_lthresh(img_unwarp_crop)
+
+    # Lab B-channel Threshold (using default parameters)
+    img_BThresh = lab_bthresh(img_unwarp_crop)
+    
+    # Combine HLS and Lab B channel thresholds
+    combined = np.zeros_like(img_BThresh)
+    #combined = np.zeros_like(img_SThresh)
+    combined[(img_LThresh == 1) | (img_BThresh == 1)] = 1
+    #combined[(img_LThresh == 1) | (img_SThresh == 1)] = 1
+    return img_unwarp_crop,combined, Minv
 ```
-
 
 ```python
-# Testing the threshholding
-kernel_size = 5
-mag_thresh = (30, 100)
-r_thresh = (235, 255)
-s_thresh = (165, 255)
-b_thresh = (160, 255)
-g_thresh = (210, 255)
+# Make a list of example images
+images = glob.glob('./test_images/*.jpg')
+                                          
+# Set up plot
+fig, axs = plt.subplots(len(images),3, figsize=(10, 20))
+fig.subplots_adjust(hspace = .2, wspace=.001)
+axs = axs.ravel()
+                  
+i = 0
+for image in images:
+    img = cv2.imread(image)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_unwarp,img_bin, Minv = pipeline(img)
+    axs[i].imshow(img)
+    axs[i].axis('off')
+    i += 1
+    axs[i].imshow(img_bin, cmap='gray')
+    i+=1
+    axs[i].imshow(img_unwarp, cmap='gray')
+    axs[i].axis('off')
+    i += 1
+```
+![download](https://user-images.githubusercontent.com/74133869/164302713-7bb00360-b3cf-49a5-a481-409b4f374e90.png)
 
-for image_name in images:
-    img = undistort(image_name, objpoints, imgpoints)
+
+# Helper functions
+
+```python
+# Define method to fit polynomial to binary image with lines extracted, using sliding window
+def sliding_window_polyfit(img):
+    # Take a histogram of the bottom half of the image
+    histogram = np.sum(img[img.shape[0]//2:,:], axis=0)
+    #print(histogram.shape)
+    # Find the peak of the left and right halves of the histogram
+    # These will be the starting point for the left and right lines
+    midpoint = np.int(histogram.shape[0]//2) # 640
+    quarter_point = np.int(midpoint//2)      # 320
+    # Previously the left/right base was the max of the left/right half of the histogram
+    # this changes it so that only a quarter of the histogram (directly to the left/right) is considered
+    leftx_base = np.argmax(histogram[quarter_point:midpoint]) + quarter_point  ####(450+320)
+    rightx_base = np.argmax(histogram[midpoint:(midpoint+quarter_point)]) + midpoint  ##(840+640)
     
-    combined_binary = get_bin_img(img, kernel_size=kernel_size, sobel_thresh=mag_thresh, r_thresh=r_thresh, 
-                                  s_thresh=s_thresh, b_thresh = b_thresh, g_thresh=g_thresh)
+    #print('base pts:', leftx_base, rightx_base)
+
+    # Choose the number of sliding windows
+    nwindows = 10
+    # Set height of windows
+    window_height = np.int(img.shape[0]/nwindows)
+    # Identify the x and y positions of all nonzero pixels in the image
+    nonzero = img.nonzero()
+    nonzeroy = np.array(nonzero[0])
+    nonzerox = np.array(nonzero[1])
+    # Current positions to be updated for each window
+    leftx_current = leftx_base
+    rightx_current = rightx_base
+    # Set the width of the windows +/- margin
+    margin = 80
+    # Set minimum number of pixels found to recenter window
+    minpix = 40
+    # Create empty lists to receive left and right lane pixel indices
+    left_lane_inds = []
+    right_lane_inds = []
+    # Rectangle data for visualization
+    rectangle_data = []
+
+    # Step through the windows one by one
+    for window in range(nwindows):
+        # Identify window boundaries in x and y (and right and left)
+        win_y_low = img.shape[0] - (window+1)*window_height    #720-(1)*72
+        win_y_high = img.shape[0] - window*window_height       #720-(0)*72
+        win_xleft_low = leftx_current - margin                 #471-80
+        win_xleft_high = leftx_current + margin                #471+80
+        win_xright_low = rightx_current - margin               #851-80
+        win_xright_high = rightx_current + margin              #851+80
+        rectangle_data.append((win_y_low, win_y_high, win_xleft_low, win_xleft_high, win_xright_low, win_xright_high))
+        # Identify the nonzero pixels in x and y within the window
+        good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
+        good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+        # Append these indices to the lists
+        left_lane_inds.append(good_left_inds)
+        right_lane_inds.append(good_right_inds)
+        # If you found > minpix pixels, recenter next window on their mean position
+        if len(good_left_inds) > minpix:
+            leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
+        if len(good_right_inds) > minpix:        
+            rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
+
+    # Concatenate the arrays of indices
+    left_lane_inds = np.concatenate(left_lane_inds)
+    right_lane_inds = np.concatenate(right_lane_inds)
+
+    # Extract left and right line pixel positions
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[right_lane_inds]
+    righty = nonzeroy[right_lane_inds] 
+
+    left_fit, right_fit = (None, None)
+    # Fit a second order polynomial to each
+    if len(leftx) != 0:
+        left_fit = np.polyfit(lefty, leftx, 2)
+    if len(rightx) != 0:
+        right_fit = np.polyfit(righty, rightx, 2)
     
-    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(12,8))
-    f.tight_layout()
-    ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    ax1.set_title("Original:: " + image , fontsize=18)
-    ax2.imshow(combined_binary, cmap='gray')
-    ax2.set_title("Threshold Binary:: "+ image, fontsize=18)
-    f.savefig(OUTDIR + "/op_" + str(time.time()) + ".jpg")
+    visualization_data = (rectangle_data, histogram)
+    
+    return left_fit, right_fit, left_lane_inds, right_lane_inds, visualization_data
 ```
 
+```python
+# visualize the result on example image
+exampleImg = cv2.imread('./test_images/test7.jpg')
+exampleImg = cv2.cvtColor(exampleImg, cv2.COLOR_BGR2RGB)
+# plt.imshow(exampleImg)
+img_unwarp_crop,exampleImg_bin, Minv = pipeline(exampleImg)
+print()
+# plt.imshow(img_unwarp_crop)
+# plt.imshow(exampleImg_bin)
+# print(Minv)
 
-![png](output_37_0.png)
+def draw_sliding(exampleImg_bin):
+    
+    left_fit, right_fit, left_lane_inds, right_lane_inds, visualization_data = sliding_window_polyfit(exampleImg_bin)
+    h = exampleImg.shape[0]
+    if left_fit is not None and right_fit is not None:
+        left_fit_x_int = left_fit[0]*h**2 + left_fit[1]*h + left_fit[2]
+        right_fit_x_int = right_fit[0]*h**2 + right_fit[1]*h + right_fit[2]
+    #print('fit x-intercepts:', left_fit_x_int, right_fit_x_int)
+    
+    rectangles = visualization_data[0]
+    histogram = visualization_data[1]
 
 
 
-![png](output_37_1.png)
+    # Create an output image to draw on and visualize the result
+    out_img = np.uint8(np.dstack((exampleImg_bin, exampleImg_bin, exampleImg_bin))*255)
+    # Generate x and y values for plotting
+    ploty = np.linspace(0, exampleImg_bin.shape[0]-1, exampleImg_bin.shape[0] )
+    if left_fit is not None and right_fit is not None:
+        left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+        right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+    for rect in rectangles:
+        # Draw the windows on the visualization image
+        cv2.rectangle(out_img,(rect[2],rect[0]),(rect[3],rect[1]),(0,255,0), 2)
+        cv2.rectangle(out_img,(rect[4],rect[0]),(rect[5],rect[1]),(0,255,0), 2)
+        # Identify the x and y positions of all nonzero pixels in the image
+    nonzero = exampleImg_bin.nonzero()
+    nonzeroy = np.array(nonzero[0])
+    nonzerox = np.array(nonzero[1])
+    out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [100, 200, 255]
+    #plt.imshow(out_img)
 
+    # temp_x = np.zeros_like(left_fitx)
+    # for x in left_fitx:
+    # x = x / 1280 * 200
+    if left_fit is not None and right_fit is not None:
+        r_left=np.column_stack((left_fitx,ploty))
+        r_right=np.column_stack((right_fitx,ploty))
+    #pts = np.array([[10,5],[20,30],[70,20],[50,10]], np.int32)
+        r_left= r_left.reshape((-1,1,2))
+        r_right= r_right.reshape((-1,1,2))
+        out_img = cv2.polylines(out_img,np.int32([r_left]),False,(255,255,0),5)
+        out_img = cv2.polylines(out_img,np.int32([r_right]),False,(255,255,0),5)
+    #plt.plot(left_fitx, ploty, color='yellow')
+    #plt.plot(right_fitx, ploty, color='yellow')
+    #plt.xlim(0, 1280)
+    #plt.ylim(720, 0)
+    #plt.imshow(out_img)
+    return out_img        
+    
+test_image = draw_sliding(exampleImg_bin)
+# plt.imshow(cv2.resize(test_image,(300, 300)))
+#plt.title('test')
 
+```
 
-![png](output_37_2.png)
+```python
+# Print histogram from sliding window polyfit for example image
+left_fit, right_fit, left_lane_inds, right_lane_inds, visualization_data = sliding_window_polyfit(exampleImg_bin)
+histogram = visualization_data[1]
+plt.plot(histogram)
+plt.xlim(0, 1280)
 
+```
 
-
-![png](output_37_3.png)
-
-
-
-![png](output_37_4.png)
-
-
-
-![png](output_37_5.png)
+![download](https://user-images.githubusercontent.com/74133869/164303097-fd3d810b-704a-45f1-9e40-c8d008b76820.png)
 
 
 # Perspective Transform
@@ -504,57 +657,7 @@ This will be helpful in finding lane curvature. <br/>
 Note that after perspective transform the lanes should apear aproximately parallel <br/>
 
 
-```python
-def transform_image(img, offset=250, src=None, dst=None):    
-    img_size = (img.shape[1], img.shape[0])
-    
-    out_img_orig = np.copy(img)
-       
-    leftupper  = (585, 460)
-    rightupper = (705, 460)
-    leftlower  = (210, img.shape[0])
-    rightlower = (1080, img.shape[0])
-    
-    
-    warped_leftupper = (offset,0)
-    warped_rightupper = (offset, img.shape[0])
-    warped_leftlower = (img.shape[1] - offset, 0)
-    warped_rightlower = (img.shape[1] - offset, img.shape[0])
-    
-    color_r = [0, 0, 255]
-    color_g = [0, 255, 0]
-    line_width = 5
-    
-    if src is not None:
-        src = src
-    else:
-        src = np.float32([leftupper, leftlower, rightupper, rightlower])
-        
-    if dst is not None:
-        dst = dst
-    else:
-        dst = np.float32([warped_leftupper, warped_rightupper, warped_leftlower, warped_rightlower])
-    
-    cv2.line(out_img_orig, leftlower, leftupper, color_r, line_width)
-    cv2.line(out_img_orig, leftlower, rightlower, color_r , line_width * 2)
-    cv2.line(out_img_orig, rightupper, rightlower, color_r, line_width)
-    cv2.line(out_img_orig, rightupper, leftupper, color_g, line_width)
-    
-    # calculate the perspective transform matrix
-    M = cv2.getPerspectiveTransform(src, dst)
-    minv = cv2.getPerspectiveTransform(dst, src)
-    
-    # Warp the image
-    warped = cv2.warpPerspective(img, M, img_size, flags=cv2.WARP_FILL_OUTLIERS+cv2.INTER_CUBIC)
-    out_warped_img = np.copy(warped)
-    
-    cv2.line(out_warped_img, warped_rightupper, warped_leftupper, color_r, line_width)
-    cv2.line(out_warped_img, warped_rightupper, warped_rightlower, color_r , line_width * 2)
-    cv2.line(out_warped_img, warped_leftlower, warped_rightlower, color_r, line_width)
-    cv2.line(out_warped_img, warped_leftlower, warped_leftupper, color_g, line_width)
-    
-    return warped, M, minv, out_img_orig, out_warped_img
-```
+
 
 
 ```python
