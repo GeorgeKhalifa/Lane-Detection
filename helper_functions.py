@@ -75,3 +75,58 @@ def plot_features(vehicle_features, non_vehicle_features):
     return scaled_X, X_scaler
 
 
+def annotate_img(path):
+    image = imread(path)
+    detected_vehicles = []
+    pxs = 320
+    INCREMENT_SIZE_BY = 16
+    PXS_LIMIT = 720
+    y_start_stop = [400, 660]
+    xy_overlap = (0.8, 0.8)
+    ACCEPTANCE_THRESHOLD = .98
+
+    while pxs < PXS_LIMIT:
+        windows = slide_window(
+            image,
+            x_start_stop=[None, None],
+            y_start_stop=y_start_stop,
+            xy_window=(pxs, pxs),
+            xy_overlap=xy_overlap
+        )
+        for window in windows:
+            features = []
+            resized = cv2.resize((image[window[0][1]: window[1][1], window[0][0]: window[1][0]]), (64, 64))
+            hog_features = get_hog_features(resized, cspace='YUV')
+
+            x_scaled = X_scaler.transform(hog_features.reshape(1, -1))
+
+            if resized.shape[0] > 0:
+                if mlp.predict_proba(x_scaled.reshape(1, -1))[0][1] > ACCEPTANCE_THRESHOLD:
+                    detected_vehicles.append(window)
+        pxs += INCREMENT_SIZE_BY
+
+    out = np.copy(image)
+    boxes = draw_boxes(np.zeros_like(image), bboxes=detected_vehicles, thick=-1)
+    contours, _ = cv2.findContours(boxes[:, :, 2].astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    for countour in contours:
+        rect_color_tup = (0, 255, 0)
+        x, y, width, height = cv2.boundingRect(countour)
+        cv2.rectangle(out, (x, y), (x + width, y + height), rect_color_tup, 6)
+        moments = cv2.moments(countour)
+        cv2.circle(
+            out, (
+                int(moments['m10'] / moments['m00']), int(moments['m01'] / moments['m00'])
+            ), 15, (255, 0, 0), -1
+        )
+    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 6))
+    f.tight_layout()
+    ax1.axis('on')
+    ax1.set_title('original')
+    ax1.imshow(image)
+    ax2.axis('on')
+    ax2.set_title('car detected box spots')
+    ax2.imshow(boxes, cmap='hot')
+    ax3.axis('on')
+    ax3.set_title('Annotated car')
+    ax3.imshow(out)
