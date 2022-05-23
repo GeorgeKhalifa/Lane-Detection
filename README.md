@@ -93,10 +93,10 @@ We trained using both an SVM and an MLP. MLP had a higher test accuracy. Here ar
 
 |Classifier|Training Accuracy|Test Accuracy|
 |----------|-----------------|-------------|
-|svm |1.00|.950|
-|mlp |1.00|.9926|
+|svm |1.00|.956081081081081|
+|mlp |1.00|.9926801801801802|
 
-###Sliding Window Search
+### Sliding Window Search
 
 ### 1. Sliding window search, scales, and overlaps. 
 
