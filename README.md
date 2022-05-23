@@ -6,10 +6,10 @@
   <li><span>John Emad Marcos Sadek :</span>  1700410 </li>
   <li><span>Botros Kamal Botros Khella :</span>  1700369</li>
   <li><span>George Wageeh Shamshoon Khalifa :</span>  1700404</li>
-  <li><span>Aya-Tallah Abdelrehim :</span>  1700337</li>
-
+  <li><span>Aya-T-Allah Abdelrehim :</span>  1700337</li>
 </ul>
 </br>
+
 <h1>Libraries needed to be installed before running the code</h1>
 </br>
 <ul>
@@ -17,6 +17,10 @@
   <li><span>OpenCV :</span> pip install opencv-contrib-python</li>
   <li><span>matpoltlib :</span> pip install matpoltlib</li>
   <li><span>moviepy :</span> pip install moviepy</li>
+  <li><span>joblib :</span> pip install joblib</li>
+  <li><span>pandas :</span> pip install pandas</li>
+  <li><span>sklearn :</span> pip install sklearn</li>
+  <li><span>scikit-image :</span> pip install scikit-image --user</li>
 </ul>
 </br>
 <h1>How to run our code</h1></br>
