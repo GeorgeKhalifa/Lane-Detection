@@ -41,6 +41,14 @@
 4) Determine lane curvature and vehicle position wrt centre. <br/>
 
 ### 1. Histogram of Oriented Gradients (HOG)
+## Steps of HOGDescriptor:
+1) preprocessing of image.
+2) Calculating Gradients (direction x and y).
+3) Calculate the Magnitude and Orientation.
+4) Calculate Histogram of Gradients in 8×8 cells (9×1).
+5) Normalize gradients in 16×16 cell.
+6) Extract the Faetures vector. 
+
 ```python
 def get_feature_space(img, cspace):
     if cspace != 'RGB':
@@ -67,7 +75,6 @@ def get_hog_features(img, cspace):
 ### 2. Final choice of HOG parameters.
 
 First, We defined a function extract_features get_hog_features. This function loops through all images, and creates an array of hogs features of each image. This array is then used as the feature array for training.  Here's a code snippet:
-
 ```python
 def extract_features(imgs, cspace='RGB', size = (64,64)):
     features = []
